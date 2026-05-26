@@ -2,13 +2,13 @@
 
 > Know every word, live.
 
-[INSERT DEMO VIDEO LINK]
-
-[INSERT SCREENSHOT]
+<img width="1920" height="964" alt="Screenshot 2026-05-26 at 11 15 37 AM" src="https://github.com/user-attachments/assets/084fc73e-c0ed-4d9b-a118-5be2703b2c99" />
+<img width="1920" height="962" alt="Screenshot 2026-05-26 at 11 17 28 AM" src="https://github.com/user-attachments/assets/ad80aa05-b8e6-432a-966d-ffd8f3d6187a" />
+<img width="1920" height="961" alt="Screenshot 2026-05-26 at 11 23 18 AM" src="https://github.com/user-attachments/assets/dcd9ba2f-0b47-4a27-9931-1205386ee751" />
 
 ## What it does
 
-Octave listens to whatever music is playing in the room — at a concert, on a speaker, through a friend's phone — identifies the song in seconds, and streams perfectly time-synced lyrics in a Spotify-style scrolling view. Hold up your phone, tap Listen, and the right line lights up exactly when the singer hits it.
+Octave listens to whatever music is playing in the room, at a concert, on a speaker, through a friend's phone — identifies the song in seconds, and streams perfectly time-synced lyrics in a Spotify-style scrolling view. Hold up your phone, tap Listen, and the right line lights up exactly when the singer hits it.
 
 ## How it works
 
