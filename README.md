@@ -6,6 +6,10 @@
 <img width="1920" height="962" alt="Screenshot 2026-05-26 at 11 17 28 AM" src="https://github.com/user-attachments/assets/ad80aa05-b8e6-432a-966d-ffd8f3d6187a" />
 <img width="1920" height="961" alt="Screenshot 2026-05-26 at 11 23 18 AM" src="https://github.com/user-attachments/assets/dcd9ba2f-0b47-4a27-9931-1205386ee751" />
 
+DEMO:
+https://github.com/user-attachments/assets/448873bf-cc24-4621-9496-4a22e8e34fae
+
+
 ## What it does
 
 Octave listens to whatever music is playing in the room, at a concert, on a speaker, through a friend's phone — identifies the song in seconds, and streams perfectly time-synced lyrics in a Spotify-style scrolling view. Hold up your phone, tap Listen, and the right line lights up exactly when the singer hits it.
