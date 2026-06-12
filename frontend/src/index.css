@@ -57,6 +57,24 @@ body {
   animation: aurora-drift 28s ease-in-out infinite alternate;
 }
 
+/* Per-song aurora tint — sits on top of the base aurora, under the grain.
+   The gradient itself is set inline from the album-cover palette; this class
+   only owns positioning, blur, drift, and the slow fade-in that doubles as
+   the "song locked in" moment. */
+.aurora-tint {
+  position: fixed;
+  inset: -15%;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1600ms ease;
+  filter: blur(40px) saturate(115%);
+  animation: aurora-drift 30s ease-in-out infinite alternate;
+}
+.aurora-tint.on {
+  opacity: 1;
+}
+
 /* film grain — fixed SVG noise, layered with overlay for premium texture */
 .grain {
   position: fixed;

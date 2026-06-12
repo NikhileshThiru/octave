@@ -67,6 +67,10 @@ export default function App() {
   const [lyrics, setLyrics] = useState(null);
   const [tooNoisy, setTooNoisy] = useState(false);
   const [hardError, setHardError] = useState(null);
+  // Mirrors attemptCountRef so the status line can stage its messaging
+  // ("Listening…" → "Still listening…") as attempts accumulate.
+  const [attempts, setAttempts] = useState(0);
+  const [fallbackActive, setFallbackActive] = useState(false);
 
   const { error: micError, analyser, recordClip, stop: stopMic } = useAudioCapture();
 
@@ -126,6 +130,8 @@ export default function App() {
     }
     setState("idle");
     setTooNoisy(false);
+    setAttempts(0);
+    setFallbackActive(false);
     missCountRef.current = 0;
     attemptCountRef.current = 0;
     stopMic();
@@ -171,6 +177,8 @@ export default function App() {
     runningRef.current = true;
     missCountRef.current = 0;
     attemptCountRef.current = 0;
+    setAttempts(0);
+    setFallbackActive(false);
     setHardError(null);
     setState("listening");
 
@@ -221,6 +229,7 @@ export default function App() {
       }
 
       attemptCountRef.current += 1;
+      setAttempts(attemptCountRef.current);
 
       let resp;
       try {
@@ -323,6 +332,7 @@ export default function App() {
           candidates.length = 0;
           speculativeLyrics = null;
           attemptCountRef.current += 1; // count the validation /identify call
+          setAttempts(attemptCountRef.current);
           // fall through to the end-of-iteration give-up check + gap
         } else {
 
@@ -368,6 +378,9 @@ export default function App() {
         // ACR returned no match (or backend rejected by score floor).
         missCountRef.current += 1;
         if (missCountRef.current >= MAX_MISSES_BEFORE_FALLBACK) {
+          // Whisper takes a few seconds — tell the user we're doing
+          // something different rather than leaving "Listening…" up.
+          setFallbackActive(true);
           try {
             const fbResp = await fetch(`${API_BASE}/fallback`, {
               method: "POST",
@@ -400,6 +413,7 @@ export default function App() {
           } catch {
             // fall through — try again on the next clip
           }
+          setFallbackActive(false);
           missCountRef.current = 0;
         }
       }
@@ -433,6 +447,28 @@ export default function App() {
   }, [runListenLoop]);
 
   useEffect(() => () => stopMic(), [stopMic]);
+
+  // Dev-only demo mode: `?demo` jumps straight to the now-playing view with
+  // canned data so the screen can be styled / screenshotted without a live
+  // ACR match. Stripped from production builds by the DEV guard + dynamic
+  // import.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!new URLSearchParams(window.location.search).has("demo")) return;
+    let cancelled = false;
+    import("./utils/demoData.js").then(({ makeDemo }) => {
+      if (cancelled) return;
+      const demo = makeDemo();
+      songRef.current = demo.song;
+      seedClock(demo.song.play_offset_sec);
+      setSong(demo.song);
+      setLyrics(demo.lyrics);
+      setState("playing");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [seedClock]);
 
   // ────────────────────────────────────────────────────────────────────
   // Continuous re-identification — see top-of-file comment.
@@ -577,7 +613,11 @@ export default function App() {
         {!micError && !hardError && !tooNoisy && state === "listening" && (
           <span className="text-bone/75 inline-flex items-center gap-2">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-            Listening…
+            {fallbackActive
+              ? "Listening closely for the words…"
+              : attempts >= 5
+              ? "Still listening — try moving closer"
+              : "Listening…"}
           </span>
         )}
         {!micError && !hardError && !tooNoisy && state === "idle" && (
@@ -589,7 +629,7 @@ export default function App() {
         className="text-[11px] tracking-wide text-bone/35 text-center max-w-xs"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.25rem)" }}
       >
-        Hold your phone near the source. We listen in 5-second bursts.
+        Hold your phone near the source. We listen in 7-second bursts.
       </p>
     </div>
   );

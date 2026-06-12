@@ -15,7 +15,6 @@ import { activeLineIndex } from "../utils/lrcParser.js";
 
 export function useLyricsSync({ lines, startOffsetSec, running }) {
   const [currentIndex, setCurrentIndex] = useState(-1);
-  const [position, setPosition] = useState(startOffsetSec || 0);
 
   const startWallRef = useRef(null);
   const startOffsetRef = useRef(startOffsetSec || 0);
@@ -29,8 +28,10 @@ export function useLyricsSync({ lines, startOffsetSec, running }) {
     const tick = () => {
       const elapsed = (performance.now() - startWallRef.current) / 1000;
       const pos = startOffsetRef.current + elapsed;
-      setPosition(pos);
-      setCurrentIndex(activeLineIndex(lines, pos));
+      // Functional update so unchanged ticks bail out of re-rendering —
+      // otherwise the whole lyrics tree re-renders 10×/sec for nothing.
+      const idx = activeLineIndex(lines, pos);
+      setCurrentIndex((prev) => (prev === idx ? prev : idx));
     };
 
     tick();
@@ -38,5 +39,5 @@ export function useLyricsSync({ lines, startOffsetSec, running }) {
     return () => window.clearInterval(id);
   }, [lines, startOffsetSec, running]);
 
-  return { currentIndex, position };
+  return { currentIndex };
 }

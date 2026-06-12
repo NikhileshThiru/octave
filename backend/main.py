@@ -17,6 +17,7 @@ from typing import Optional
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -67,8 +68,12 @@ async def identify(file: UploadFile = File(...)):
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio payload.")
 
+    # acr uses the sync `requests` client; run it in the threadpool so a slow
+    # ACR round trip doesn't stall the event loop. The frontend deliberately
+    # overlaps /identify with a speculative /lyrics fetch — blocking here
+    # would serialize them server-side and erase that win.
     try:
-        result = acr.identify_song(audio_bytes)
+        result = await run_in_threadpool(acr.identify_song, audio_bytes)
     except Exception as exc:
         log.exception("ACRCloud call failed")
         raise HTTPException(status_code=502, detail=f"ACRCloud error: {exc}") from exc
@@ -83,7 +88,9 @@ async def identify(file: UploadFile = File(...)):
     # Enrich with a real Spotify cover URL if we have a track ID and ACR
     # didn't already provide one.
     if not result.get("album_art_url") and result.get("spotify_track_id"):
-        result["album_art_url"] = acr.fetch_spotify_cover(result["spotify_track_id"])
+        result["album_art_url"] = await run_in_threadpool(
+            acr.fetch_spotify_cover, result["spotify_track_id"]
+        )
 
     return result
 
@@ -214,8 +221,10 @@ async def fallback(file: UploadFile = File(...)):
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio payload.")
 
+    # Whisper inference is CPU-bound and takes seconds — keep it off the
+    # event loop or every concurrent request freezes for the duration.
     try:
-        transcript = whisper_fallback.transcribe(audio_bytes)
+        transcript = await run_in_threadpool(whisper_fallback.transcribe, audio_bytes)
     except Exception as exc:
         log.exception("Whisper transcription failed")
         raise HTTPException(status_code=500, detail=f"Whisper error: {exc}") from exc

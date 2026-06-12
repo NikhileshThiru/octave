@@ -14,6 +14,10 @@ import react from "@vitejs/plugin-react";
 //                        relative URLs (`/identify`, `/lyrics`, `/fallback`,
 //                        `/health`) so no CORS, no `VITE_API_BASE`, no
 //                        second tunnel needed.
+// Backend port is overridable for machines where :8000 is already taken:
+//   OCTAVE_API_PORT=8001 npm run dev
+const apiTarget = `http://localhost:${process.env.OCTAVE_API_PORT || 8000}`;
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -28,10 +32,10 @@ export default defineConfig({
       ".ts.net",
     ],
     proxy: {
-      "/identify": "http://localhost:8000",
-      "/lyrics": "http://localhost:8000",
-      "/fallback": "http://localhost:8000",
-      "/health": "http://localhost:8000",
+      "/identify": apiTarget,
+      "/lyrics": apiTarget,
+      "/fallback": apiTarget,
+      "/health": apiTarget,
     },
   },
 });

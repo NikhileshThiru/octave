@@ -3,7 +3,7 @@ export default function SongInfo({ title, artist, album }) {
     "0 1px 2px rgba(0,0,0,0.85), 0 2px 16px rgba(0,0,0,0.55)";
 
   return (
-    <div className="text-center px-6 pt-3 pb-3 animate-fade-up">
+    <div className="text-center md:text-left px-6 md:px-0 pt-3 pb-3">
       <div
         className="text-[10px] uppercase tracking-widest2 text-bone/60 mb-2"
         style={{ textShadow }}
@@ -11,13 +11,13 @@ export default function SongInfo({ title, artist, album }) {
         Now Playing
       </div>
       <div
-        className="font-display text-[28px] leading-tight font-medium text-bone"
+        className="font-display text-[28px] md:text-[38px] leading-tight font-medium text-bone"
         style={{ textShadow }}
       >
         {title}
       </div>
       <div
-        className="mt-1 text-[14px] text-bone/80 tracking-wide"
+        className="mt-1 text-[14px] md:text-[15px] text-bone/80 tracking-wide"
         style={{ textShadow }}
       >
         {artist}

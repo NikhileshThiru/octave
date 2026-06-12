@@ -20,14 +20,16 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 const FADE = [1.0, 0.55, 0.35, 0.2, 0.1];
 const SIZE = [
-  "font-display text-[26px] leading-[1.18] font-medium tracking-tight",
-  "text-[17px] leading-snug font-medium",
-  "text-[15px] leading-snug",
-  "text-[14px] leading-snug",
-  "text-[13px] leading-snug",
+  "font-display text-[26px] md:text-[34px] leading-[1.18] font-medium tracking-tight",
+  "text-[17px] md:text-[20px] leading-snug font-medium",
+  "text-[15px] md:text-[17px] leading-snug",
+  "text-[14px] md:text-[15px] leading-snug",
+  "text-[13px] md:text-[14px] leading-snug",
 ];
 
-export default function LyricsDisplay({ lines, currentIndex, plain }) {
+// `accent` is the album-palette primary as [r,g,b] (or null). It only tints
+// the active line's outer glow — the text itself stays bone for legibility.
+export default function LyricsDisplay({ lines, currentIndex, plain, accent }) {
   const containerRef = useRef(null);
   const lineRefs = useRef([]);
   const [translateY, setTranslateY] = useState(0);
@@ -56,7 +58,7 @@ export default function LyricsDisplay({ lines, currentIndex, plain }) {
   if ((!lines || lines.length === 0) && plain) {
     return (
       <div
-        className="lyrics-scroll lyric-fade flex-1 overflow-y-auto px-8 pb-16 pt-8 text-center text-bone/90 whitespace-pre-line leading-relaxed text-[16px]"
+        className="lyrics-scroll lyric-fade flex-1 overflow-y-auto px-8 md:px-14 pb-16 pt-8 text-center md:text-left text-bone/90 whitespace-pre-line leading-relaxed text-[16px]"
         style={{
           textShadow: "0 1px 2px rgba(0,0,0,0.85), 0 2px 12px rgba(0,0,0,0.55)",
         }}
@@ -84,13 +86,17 @@ export default function LyricsDisplay({ lines, currentIndex, plain }) {
     );
   }
 
+  const activeGlow = accent
+    ? `rgba(${accent[0]},${accent[1]},${accent[2]},0.38)`
+    : "rgba(125,211,252,0.3)";
+
   return (
     <div
       ref={containerRef}
       className="flex-1 relative overflow-hidden lyric-fade"
     >
       <div
-        className="absolute left-0 right-0 px-7"
+        className="absolute left-0 right-0 px-7 md:px-14 lg:px-20"
         style={{
           transform: `translateY(${translateY}px)`,
           transition: "transform 600ms cubic-bezier(0.4, 0, 0.2, 1)",
@@ -101,7 +107,7 @@ export default function LyricsDisplay({ lines, currentIndex, plain }) {
           const distance = Math.abs(i - currentIndex);
           const opacity = distance < FADE.length ? FADE[distance] : 0.06;
           const sizeClass =
-            distance < SIZE.length ? SIZE[distance] : "text-[12px]";
+            distance < SIZE.length ? SIZE[distance] : "text-[12px] md:text-[13px]";
           const isActive = i === currentIndex;
 
           return (
@@ -111,13 +117,13 @@ export default function LyricsDisplay({ lines, currentIndex, plain }) {
                 lineRefs.current[i] = el;
               }}
               className={[
-                "text-center my-3 text-bone transition-all duration-500 ease-out",
+                "text-center md:text-left my-3 text-bone transition-all duration-500 ease-out",
                 sizeClass,
               ].join(" ")}
               style={{
                 opacity,
                 textShadow: isActive
-                  ? "0 1px 2px rgba(0,0,0,0.85), 0 2px 18px rgba(0,0,0,0.55), 0 2px 24px rgba(125,211,252,0.3)"
+                  ? `0 1px 2px rgba(0,0,0,0.85), 0 2px 18px rgba(0,0,0,0.55), 0 2px 24px ${activeGlow}`
                   : "0 1px 2px rgba(0,0,0,0.85), 0 2px 12px rgba(0,0,0,0.55)",
               }}
             >

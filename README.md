@@ -2,11 +2,12 @@
 
 > Know every word, live.
 
-<img width="1920" height="964" alt="Screenshot 2026-05-26 at 11 15 37 AM" src="https://github.com/user-attachments/assets/084fc73e-c0ed-4d9b-a118-5be2703b2c99" />
-<img width="1920" height="962" alt="Screenshot 2026-05-26 at 11 17 28 AM" src="https://github.com/user-attachments/assets/ad80aa05-b8e6-432a-966d-ffd8f3d6187a" />
-<img width="1920" height="961" alt="Screenshot 2026-05-26 at 11 23 18 AM" src="https://github.com/user-attachments/assets/dcd9ba2f-0b47-4a27-9931-1205386ee751" />
+<img width="1920" height="964" alt="Octave landing page — circular Listen button at rest on a dark stage-like backdrop" src="https://github.com/user-attachments/assets/084fc73e-c0ed-4d9b-a118-5be2703b2c99" />
+<img width="1920" height="962" alt="Octave listening — radial audio visualizer reacting live to nearby music" src="https://github.com/user-attachments/assets/ad80aa05-b8e6-432a-966d-ffd8f3d6187a" />
+<img width="1920" height="961" alt="Octave now-playing — album art, song metadata, and synced scrolling lyrics" src="https://github.com/user-attachments/assets/dcd9ba2f-0b47-4a27-9931-1205386ee751" />
 
-DEMO:
+## Demo
+
 https://github.com/user-attachments/assets/448873bf-cc24-4621-9496-4a22e8e34fae
 
 
@@ -26,11 +27,13 @@ The full pipeline, end to end.
 
 4. **Playback clock with RTT correction.** The frontend seeds a 100 ms tick playback clock with `play_offset_sec` plus the measured elapsed time between when the mic capture ended and when the clock is being seeded. This single number covers identify RTT, lyrics RTT, and React reconciliation, and it fixes the roughly 1.5 second drift that would otherwise put every lyric one line off.
 
-5. **FastAPI as a secure proxy.** Every third-party call (ACRCloud signing, LRCLIB search, Spotify oEmbed cover lookup) happens server-side. The frontend never touches the keys; they live in `backend/.env` and never enter the bundle.
+5. **FastAPI as a secure proxy.** Every third-party call (ACRCloud signing, LRCLIB search, Spotify oEmbed cover lookup) happens server-side. The frontend never touches the keys; they live in `backend/.env` and never enter the bundle. Blocking work — the signed ACRCloud request, Whisper inference — runs in a worker threadpool so the async event loop stays free and the frontend's deliberately-overlapped requests stay genuinely parallel.
 
-6. **Whisper fallback.** If ACRCloud misses three clips in a row (instrumental sections, very noisy rooms, niche tracks), the backend lazy-loads `openai-whisper` and transcribes the latest clip locally. The transcript is decomposed into 5-word and 3-word candidate queries and fed to LRCLIB's `/search` endpoint, because LRCLIB matches on titles and artists, not on lyric phrases.
+6. **Whisper fallback.** If ACRCloud misses five clips in a row (instrumental sections, very noisy rooms, niche tracks), the backend lazy-loads `openai-whisper` and transcribes the latest clip locally. The transcript is decomposed into 5-word and 3-word candidate queries and fed to LRCLIB's `/search` endpoint, because LRCLIB matches on titles and artists, not on lyric phrases.
 
 7. **Continuous re-identification.** While the song plays, the frontend re-identifies every 30 seconds to correct accumulating clock drift. A tolerance check of ±3.5 seconds rejects ACRCloud's chorus-confusion jumps, where the same song matches an earlier near-identical chorus. Instrumental bridges that return no-match are silently absorbed, so the clock keeps ticking.
+
+8. **Adaptive visuals.** After a match, the album cover's dominant colors are extracted client-side (a 32×32 canvas sample, no dependencies) and bloom into the aurora backdrop over about a second and a half — every song gets its own atmosphere, and the color fade doubles as the "locked in" moment. The same palette tints the active lyric's glow and the song progress bar.
 
 ## Mobile
 
@@ -48,7 +51,7 @@ For phone testing on the same Wi-Fi as your dev machine, the easiest path is `ng
 
 ## Tech stack
 
-**Frontend:** React 18, Vite 5, Tailwind CSS 3.4, HTML Canvas (visualizer), Web Audio API (`AudioContext`, `MediaStreamSource`, `ScriptProcessor`, `AnalyserNode`), Fraunces and Manrope (Google Fonts).
+**Frontend:** React 18, Vite 5, Tailwind CSS 3.4, HTML Canvas (visualizer, album-palette extraction), Web Audio API (`AudioContext`, `MediaStreamSource`, `ScriptProcessor`, `AnalyserNode`), Fraunces and Manrope (Google Fonts).
 
 **Backend:** Python 3.13, FastAPI, Uvicorn, `requests`, `python-dotenv`, `openai-whisper` (lazy-loaded, `base` model by default).
 
@@ -85,6 +88,10 @@ npm run dev
 ```
 
 Open `http://localhost:5173`, allow microphone access, tap **Listen**, and play a song nearby.
+
+No ACRCloud keys yet? Open `http://localhost:5173/?demo` instead — a dev-only mode that renders the now-playing view with canned data, no mic or credentials required.
+
+If another project already holds the default ports, both are overridable: start uvicorn with `--port 8001` and the frontend with `OCTAVE_API_PORT=8001 npm run dev -- --port 5174`.
 
 To verify your ACRCloud credentials end-to-end with a real WAV clip:
 

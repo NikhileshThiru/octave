@@ -16,6 +16,7 @@ export default {
       animation: {
         "aurora-drift": "aurora-drift 28s ease-in-out infinite alternate",
         "fade-up": "fade-up 0.7s cubic-bezier(.16,.84,.34,1) both",
+        "cover-in": "cover-in 0.8s cubic-bezier(.16,.84,.34,1) both",
       },
       keyframes: {
         "aurora-drift": {
@@ -26,6 +27,10 @@ export default {
         "fade-up": {
           "0%":   { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "cover-in": {
+          "0%":   { opacity: "0", transform: "translateY(14px) scale(0.92)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
         },
       },
       letterSpacing: {
