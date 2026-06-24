@@ -2,66 +2,51 @@
 
 > Know every word, live.
 
-<img width="1920" height="964" alt="Octave landing page — circular Listen button at rest on a dark stage-like backdrop" src="https://github.com/user-attachments/assets/084fc73e-c0ed-4d9b-a118-5be2703b2c99" />
-<img width="1920" height="962" alt="Octave listening — radial audio visualizer reacting live to nearby music" src="https://github.com/user-attachments/assets/ad80aa05-b8e6-432a-966d-ffd8f3d6187a" />
-<img width="1920" height="961" alt="Octave now-playing — album art, song metadata, and synced scrolling lyrics" src="https://github.com/user-attachments/assets/dcd9ba2f-0b47-4a27-9931-1205386ee751" />
+Octave is a phone-first music recognition app that listens to nearby audio, identifies the song, and opens a synced lyric view aligned to the exact point currently playing. It is built as a React/Vite frontend with a FastAPI backend that proxies ACRCloud, LRCLIB, Spotify oEmbed, and an optional local Whisper fallback.
 
 ## Demo
 
-https://github.com/user-attachments/assets/448873bf-cc24-4621-9496-4a22e8e34fae
+<p align="center">
+  <video src="media/octave-demo.mp4" controls muted poster="media/octave-now-playing.png"></video>
+</p>
 
+<p align="center">
+  <a href="media/octave-demo.mp4">Watch the demo video</a>
+</p>
 
-## What it does
+| Idle | Listening | Synced lyrics |
+| --- | --- | --- |
+| <img src="media/octave-idle.png" alt="Octave idle screen with circular Listen button" /> | <img src="media/octave-listening.png" alt="Octave listening screen with live radial visualizer" /> | <img src="media/octave-now-playing.png" alt="Octave now-playing screen with album art and synced lyrics" /> |
 
-Octave listens to whatever music is playing nearby, identifies the song in a few seconds, and streams synced lyrics in a Spotify-style scrolling view. Hold up your phone, tap Listen, and the current line lights up exactly when the singer hits it.
+## Why it is interesting
+
+- **Real audio pipeline:** the browser records 7-second WAV clips from the mic, downsamples them to 16 kHz mono, and sends them to a Python API for recognition.
+- **Drift-corrected lyric sync:** the frontend seeds its lyric clock with ACRCloud's `play_offset_sec` plus measured request/render latency, then re-identifies every 30 seconds to correct drift.
+- **Confidence-aware matching:** high-confidence matches still get a second-position validation, while borderline matches require corroboration before the app commits to a song.
+- **Phone-first interaction:** the UI is tuned for the real use case: holding a phone near concert speakers or a nearby sound source.
+- **Secure API boundary:** ACRCloud signing, LRCLIB lookup, Spotify cover resolution, and Whisper fallback all run server-side. Secrets never ship to the browser.
 
 ## How it works
 
-The full pipeline, end to end.
-
-1. **Mic capture (Web Audio API).** The browser captures a 7-second clip through `getUserMedia` and a custom `ScriptProcessor` with a subscriber fan-out, downsamples 48 kHz to 16 kHz mono, and emits a WAV blob. A second tap off the same source feeds an `AnalyserNode` that drives the live radial visualizer.
-
-2. **Song identification (ACRCloud).** The WAV is sent to the FastAPI backend, which HMAC-SHA1 signs the request and forwards it to ACRCloud's Identification API. ACRCloud returns the matched song plus a `play_offset_sec` value, which is where in the track the clip was captured from. That offset is the foundation of lyric sync.
-
-3. **Synced lyrics ([LRCLIB](https://lrclib.net/)).** The backend queries LRCLIB with the title and artist returned by ACRCloud, preferring `syncedLyrics` over `plainLyrics`. The LRC string is parsed into `{ time, text }[]` and shipped to the frontend.
-
-4. **Playback clock with RTT correction.** The frontend seeds a 100 ms tick playback clock with `play_offset_sec` plus the measured elapsed time between when the mic capture ended and when the clock is being seeded. This single number covers identify RTT, lyrics RTT, and React reconciliation, and it fixes the roughly 1.5 second drift that would otherwise put every lyric one line off.
-
-5. **FastAPI as a secure proxy.** Every third-party call (ACRCloud signing, LRCLIB search, Spotify oEmbed cover lookup) happens server-side. The frontend never touches the keys; they live in `backend/.env` and never enter the bundle. Blocking work — the signed ACRCloud request, Whisper inference — runs in a worker threadpool so the async event loop stays free and the frontend's deliberately-overlapped requests stay genuinely parallel.
-
-6. **Whisper fallback.** If ACRCloud misses five clips in a row (instrumental sections, very noisy rooms, niche tracks), the backend lazy-loads `openai-whisper` and transcribes the latest clip locally. The transcript is decomposed into 5-word and 3-word candidate queries and fed to LRCLIB's `/search` endpoint, because LRCLIB matches on titles and artists, not on lyric phrases.
-
-7. **Continuous re-identification.** While the song plays, the frontend re-identifies every 30 seconds to correct accumulating clock drift. A tolerance check of ±3.5 seconds rejects ACRCloud's chorus-confusion jumps, where the same song matches an earlier near-identical chorus. Instrumental bridges that return no-match are silently absorbed, so the clock keeps ticking.
-
-8. **Adaptive visuals.** After a match, the album cover's dominant colors are extracted client-side (a 32×32 canvas sample, no dependencies) and bloom into the aurora backdrop over about a second and a half — every song gets its own atmosphere, and the color fade doubles as the "locked in" moment. The same palette tints the active lyric's glow and the song progress bar.
-
-## Mobile
-
-Octave is designed phone-first. The intended use is holding a device up at a concert or in front of a speaker, so every layout and interaction is tuned for that.
-
-- **Responsive listen button.** The visualizer's container size is computed from `window.innerWidth` and scales the inner disc proportionally with a 150 px touch-target floor, so the rays never clip off-screen on a 375 px iPhone SE viewport while still filling the available width on tablets and desktops.
-- **Dynamic viewport.** Both the landing page (`min-h-dvh`) and the now-playing view (`height: 100dvh`) use the dynamic viewport unit so the layout doesn't get truncated by Safari's collapsing URL bar or pushed off-screen by the keyboard.
-- **Safe-area insets.** The top wordmark, the back button, the Spotify deep-link pill, and the bottom hint text all add `env(safe-area-inset-top/bottom)` padding so nothing collides with the notch or home indicator.
-- **Touch tuning.** Body-level `-webkit-tap-highlight-color: transparent` removes the blue iOS tap flash; `overscroll-behavior: none` prevents pull-to-refresh from interrupting a live listen session; the viewport meta tag includes `viewport-fit=cover` and `user-scalable=no` to anchor the layout.
-- **Orientation.** Resize and `orientationchange` listeners re-measure the visualizer container on rotation so the visualizer reflows cleanly between portrait and landscape.
-- **Lyrics view.** The scrolling lyrics column uses a CSS `transform: translateY` instead of `scrollIntoView`, because `scrollIntoView` walked up every ancestor and scrolled the document itself on iOS Safari and Firefox, eventually pushing the back button off the top of the screen.
-- **Mic permission.** The Listen button is the only interactive surface on the landing page and the only path that calls `getUserMedia`, satisfying browsers' user-gesture requirement on the first tap. The `AudioContext` is explicitly resumed inside that same gesture so iOS doesn't leave it in a suspended state.
-
-For phone testing on the same Wi-Fi as your dev machine, the easiest path is `ngrok` or `tailscale serve` for HTTPS, since browsers only grant mic access on `localhost` or HTTPS origins.
+1. **Mic capture:** `useAudioCapture` asks for microphone access from a user tap, creates a Web Audio graph, and records 7-second clips through a persistent `ScriptProcessor` subscriber fan-out. The same source feeds an `AnalyserNode` for the live radial visualizer.
+2. **Song identification:** the FastAPI backend signs each request with HMAC-SHA1 and forwards the WAV to ACRCloud's Identification API. Low-score matches are rejected at the API boundary.
+3. **Lyric lookup:** the backend queries LRCLIB by title, artist, album, and duration, preferring synced LRC data and falling back to search when `/get` is too strict or only returns plain lyrics.
+4. **Clock correction:** when a match commits, the frontend adds elapsed pipeline time to `play_offset_sec` before starting the lyric clock, covering recognition latency, lyric lookup latency, and React render time.
+5. **Ongoing re-identification:** while lyrics are playing, Octave samples again every 30 seconds. Corrections within a 3.5-second tolerance are accepted; large jumps are ignored as likely chorus-confusion matches.
+6. **Whisper fallback:** after repeated ACR misses, the backend lazy-loads `openai-whisper`, transcribes the latest clip locally, turns the transcript into short candidate queries, and searches LRCLIB.
+7. **Adaptive visuals:** once a song is found, the frontend samples the album cover on a tiny canvas and uses the dominant palette to tint the backdrop, active lyric glow, and progress bar.
 
 ## Tech stack
 
-**Frontend:** React 18, Vite 5, Tailwind CSS 3.4, HTML Canvas (visualizer, album-palette extraction), Web Audio API (`AudioContext`, `MediaStreamSource`, `ScriptProcessor`, `AnalyserNode`), Fraunces and Manrope (Google Fonts).
+**Frontend:** React 18, Vite 5, Tailwind CSS, Web Audio API, Canvas, Fraunces, Manrope.
 
-**Backend:** Python 3.13, FastAPI, Uvicorn, `requests`, `python-dotenv`, `openai-whisper` (lazy-loaded, `base` model by default).
+**Backend:** FastAPI, Uvicorn, Pydantic, Requests, HTTPX, `python-dotenv`, optional `openai-whisper`.
 
-**Third-party APIs:** ACRCloud Identification API (HMAC-SHA1 signed), LRCLIB (public, no key), Spotify oEmbed for album covers (no key).
+**External services:** ACRCloud Identification API, LRCLIB, Spotify oEmbed.
 
-**Deployment surface:** Runs locally as two processes (`uvicorn` on `:8000`, Vite dev server on `:5173`), with Vite proxying API calls to the backend so the frontend and API share one origin.
+## Run locally
 
-## Run it locally
-
-Requires Python 3.10+ and Node 18+. You'll need ACRCloud Identification API credentials (a free tier is available at acrcloud.com).
+Requires Python 3.10+, Node 18+, and ACRCloud Identification API credentials.
 
 ```bash
 # 1. Clone
@@ -73,42 +58,73 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-# Copy the example env and fill in your real ACRCloud keys
 cp .env.example .env
-# then edit .env with your ACR_HOST, ACR_ACCESS_KEY, ACR_SECRET_KEY
-
-# Start the API on port 8000
+# Fill in ACR_HOST, ACR_ACCESS_KEY, and ACR_SECRET_KEY in backend/.env
 uvicorn main:app --reload
 
-# 3. Frontend (new terminal)
-cd ../frontend
+# 3. Frontend, in a second terminal
+cd frontend
 npm install
 npm run dev
 ```
 
 Open `http://localhost:5173`, allow microphone access, tap **Listen**, and play a song nearby.
 
-No ACRCloud keys yet? Open `http://localhost:5173/?demo` instead — a dev-only mode that renders the now-playing view with canned data, no mic or credentials required.
+No ACRCloud keys yet? Run the frontend and open `http://localhost:5173/?demo`. Demo mode loads the now-playing view with canned song data, generated album art, and synced placeholder lyrics. It does not need a backend, mic access, or API credentials.
 
-If another project already holds the default ports, both are overridable: start uvicorn with `--port 8001` and the frontend with `OCTAVE_API_PORT=8001 npm run dev -- --port 5174`.
-
-To verify your ACRCloud credentials end-to-end with a real WAV clip:
+If the default backend port is busy, start the API on another port and point Vite at it:
 
 ```bash
-cd backend && python test_acr.py path/to/clip.wav
+cd backend
+uvicorn main:app --reload --port 8001
+
+cd ../frontend
+OCTAVE_API_PORT=8001 npm run dev -- --port 5174
+```
+
+For phone testing on the same Wi-Fi network, use HTTPS through a tunnel such as ngrok, Cloudflare Tunnel, or Tailscale Serve. Browsers only grant microphone access on `localhost` or secure origins.
+
+## Verification
+
+```bash
+cd frontend
+npm test
+npm run build
+
+cd ..
+python3 -m py_compile backend/main.py backend/acr.py backend/whisper_fallback.py backend/test_acr.py
+```
+
+To verify ACRCloud credentials with a real clip:
+
+```bash
+cd backend
+python test_acr.py path/to/clip.wav
+```
+
+## Project structure
+
+```text
+backend/
+  main.py               FastAPI routes, LRCLIB lookup, Whisper fallback endpoint
+  acr.py                ACRCloud signing, matching, Spotify cover lookup
+  whisper_fallback.py   Lazy-loaded local Whisper transcription
+  test_acr.py           Manual ACRCloud credential smoke test
+
+frontend/
+  src/App.jsx                  Listen/playback state machine
+  src/hooks/useAudioCapture.js  Mic capture, WAV encoding, analyser fan-out
+  src/hooks/useLyricsSync.js    Playback clock and active lyric index
+  src/components/              Listen button, now-playing view, lyrics display
+  src/utils/                   LRC parser, palette extraction, demo data
 ```
 
 ## What I learned
 
-The hardest problem by far was lyric sync drift. ACRCloud returns a `play_offset_sec` value telling you where in the track the clip was captured, but that timestamp is as of when the clip was fingerprinted, not as of when the lyrics start scrolling on the phone. By the time the response reaches the browser, the lyrics endpoint responds, and React commits a re-render, roughly 1.5 seconds have passed. That is enough to put every lyric exactly one line off, which is more disorienting than no sync at all. The fix was a two-layer correction: a single elapsed-time measurement at clock seeding that absorbs pipeline RTT, plus a continuous re-identification loop every 30 seconds with tolerance-based rejection of ACRCloud's occasional chorus-confusion mismatches.
+The hardest part was making synced lyrics feel reliable. ACRCloud returns where the captured audio sits in the track, but the user sees the lyric view after recognition, lyric lookup, and React rendering have already taken time. Adding that measured elapsed time to the clock seed fixed the line-level drift, and periodic re-identification keeps longer sessions aligned without accepting obvious repeated-chorus jumps.
 
-The LRCLIB data availability issue was a different kind of subtle. LRCLIB's `/search` endpoint matches on titles and artists, not on lyric phrases. So when Whisper hands back a transcript like "there's a lady who's sure all that glitters is gold," searching that string verbatim returns nothing. The solution was to fan the transcript into multiple short candidate queries (5-word and 3-word windows) and take the first hit, which most often surfaces the song by title or by a chorus phrase that happens to overlap.
+I also learned that music metadata APIs fail in practical ways: precise lyric lookups can miss because an album name or duration differs, fingerprinting can return the right song at the wrong repeated section, and lyric search is title/artist-oriented rather than phrase-oriented. Most of Octave's complexity exists to make those edge cases invisible during a live listen.
 
-The Web Audio API itself taught me a lot. `AudioContext` starts in a suspended state under autoplay policy and silently produces no data until `resume()` is called inside a user gesture. `AnalyserNode.getByteFrequencyData` is calibrated against `min/maxDecibels` and can return all zeros for a genuinely quiet room. A `ScriptProcessor` needs to be connected to `ctx.destination` on Safari just to fire its callbacks. And pipelining the listen loop, where the next 7-second clip is already being captured concurrently with the previous clip's `/identify` round trip, was a small architectural choice that cut perceived time-to-lock roughly in half.
+## Origin
 
-## Why I built this
-
-In the two weeks around the end of the spring semester I went to two concerts: Breakaway Music Festival and Don Toliver's Octane Tour. The headliner doesn't go on until late at those shows, so there are hours of opening acts you've often never heard before. I was standing in the crowd enjoying the sound but completely lost on the words, and somewhere in one of those sets the idea clicked: I can code, I can probably build something that figures out the song and puts the lyrics in front of me in real time. A few weeks later, this is Octave.
-
-That gap, between "wouldn't it be cool if" and something running on my phone, is the part of coding I keep coming back to. The idea wouldn't have existed if I hadn't been at those shows, and it exists as a real app because building it was within what I already knew how to do.
+I built Octave after spending hours at concerts enjoying opening sets but missing most of the lyrics. The idea was simple: if a phone can identify the song, it should also be able to put the current words on screen in real time. This project turned that moment into a working end-to-end app.

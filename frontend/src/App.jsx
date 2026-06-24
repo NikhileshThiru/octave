@@ -13,7 +13,7 @@ import { checkIfTooNoisy } from "./utils/noiseDetection.js";
  * The listen loop is the part with all the moving parts:
  *
  *   - Pipelined recording: while one clip is being processed by /identify,
- *     the next 5-second clip is already being captured. Hides the ~1.5 s
+ *     the next 7-second clip is already being captured. Hides the ~1.5 s
  *     network RTT on every attempt past the first.
  *
  *   - Score-aware commit:
@@ -25,7 +25,7 @@ import { checkIfTooNoisy } from "./utils/noiseDetection.js";
  *     we start pulling its lyrics in the background. If corroboration
  *     commits to that song, lyrics are already loaded — saves ~300 ms.
  *
- *   - Whisper fallback after 3 consecutive ACR 404s (score-filter rejects
+ *   - Whisper fallback after 5 consecutive ACR 404s (score-filter rejects
  *     count as 404s here, since the user gets nothing usable from them).
  *
  *   - Re-identification effect (further down) corrects drift every 30 s
@@ -254,7 +254,7 @@ export default function App() {
         // *position* — for tracks with repeated choruses or near-identical
         // verses, ACR can match a clip to an earlier occurrence. We confirm
         // by using the already-pipelined next clip: its play_offset_sec
-        // should land ~5 seconds further along the song than this one's.
+        // should land roughly one clip window further along the song.
         if (score >= COMMIT_FAST_SCORE) {
           // Kick off the clip AFTER the validation clip in parallel, so
           // pipelining is preserved if validation fails and we have to keep

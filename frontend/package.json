@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "test": "node src/utils/lrcParser.test.js",
+    "capture:media": "node ../scripts/capture-media.mjs",
     "build": "vite build",
     "preview": "vite preview --host"
   },

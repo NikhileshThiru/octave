@@ -7,9 +7,9 @@ Exposes two endpoints:
 * POST /lyrics    — given a title+artist (or free-text query), look up
   synchronized lyrics from LRCLIB and return parsed lines plus the raw LRC.
 * POST /fallback  — accept audio, run Whisper, then search LRCLIB by the
-  transcribed text. Used by the client after 3 ACR failures.
+  transcribed text. Used by the client after five ACR misses.
 
-The frontend handles the "3 strikes" counting; the backend stays stateless.
+The frontend handles miss counting; the backend stays stateless.
 """
 
 import logging

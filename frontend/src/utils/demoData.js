@@ -51,7 +51,7 @@ export function makeDemo() {
     artist: "Velvet Antenna",
     album: "Night Static",
     album_art_url: paintDemoCover(),
-    spotify_track_id: "demo",
+    spotify_track_id: null,
     play_offset_sec: 38,
     duration_sec: 184,
     // Suppresses the re-identification loop (which would grab the mic) —
