@@ -8,13 +8,12 @@ import { fileURLToPath } from "node:url";
 const APP_URL = process.env.OCTAVE_CAPTURE_URL || "http://127.0.0.1:5173";
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const MEDIA_DIR = join(ROOT, "media");
-const FRAME_DIR = join(
+const WORK_DIR = join(
   process.env.TMPDIR || "/tmp",
-  `octave-capture-${Date.now()}`
+  `octave-screenshots-${Date.now()}`
 );
 const WIDTH = 1920;
 const HEIGHT = 1080;
-const VIDEO_FPS = 12;
 
 const chromeCandidates = [
   process.env.CHROME_PATH,
@@ -82,7 +81,7 @@ const chromePath = await findChrome();
 const port = await getFreePort();
 
 await mkdir(MEDIA_DIR, { recursive: true });
-await mkdir(FRAME_DIR, { recursive: true });
+await mkdir(WORK_DIR, { recursive: true });
 
 let chrome;
 try {
@@ -97,7 +96,7 @@ try {
     "--autoplay-policy=no-user-gesture-required",
     "--use-fake-ui-for-media-stream",
     "--use-fake-device-for-media-stream",
-    `--user-data-dir=${join(FRAME_DIR, "profile")}`,
+    `--user-data-dir=${join(WORK_DIR, "profile")}`,
     `--window-size=${WIDTH},${HEIGHT}`,
     "about:blank",
   ], {
@@ -134,28 +133,10 @@ try {
   await delay(2200);
   await screenshot(page, join(MEDIA_DIR, "octave-now-playing.png"));
 
-  let frame = 0;
-  await goto(page, `${APP_URL}/`);
-  await waitForText(page, "Tap to start");
-  frame = await captureFrames(page, frame, 24);
-
-  await page.send("Runtime.evaluate", {
-    expression: "document.querySelector('button')?.click()",
-    awaitPromise: true,
-  });
-  await waitForText(page, "Listening");
-  frame = await captureFrames(page, frame, 36);
-
-  await goto(page, `${APP_URL}/?demo`);
-  await waitForText(page, "Afterglow");
-  await delay(800);
-  frame = await captureFrames(page, frame, 48);
-
-  await renderVideo();
-  console.log("Captured README media in media/.");
+  console.log("Captured README screenshots in media/.");
 } finally {
   if (chrome && !chrome.killed) chrome.kill("SIGTERM");
-  await rm(FRAME_DIR, { recursive: true, force: true });
+  await rm(WORK_DIR, { recursive: true, force: true });
 }
 
 async function openPage(debugPort) {
@@ -221,43 +202,6 @@ async function screenshot(page, path) {
     fromSurface: true,
   });
   await writeFile(path, Buffer.from(result.data, "base64"));
-}
-
-async function captureFrames(page, startIndex, count) {
-  let frame = startIndex;
-  for (let i = 0; i < count; i += 1) {
-    await screenshot(page, join(FRAME_DIR, `frame-${String(frame).padStart(4, "0")}.png`));
-    frame += 1;
-    await delay(Math.round(1000 / VIDEO_FPS));
-  }
-  return frame;
-}
-
-async function renderVideo() {
-  await new Promise((resolvePromise, rejectPromise) => {
-    const ffmpeg = spawn("ffmpeg", [
-      "-y",
-      "-framerate",
-      String(VIDEO_FPS),
-      "-i",
-      join(FRAME_DIR, "frame-%04d.png"),
-      "-vf",
-      "scale=1280:-2",
-      "-c:v",
-      "libx264",
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart",
-      join(MEDIA_DIR, "octave-demo.mp4"),
-    ], {
-      stdio: ["ignore", "ignore", "inherit"],
-    });
-    ffmpeg.on("exit", (code) => {
-      if (code === 0) resolvePromise();
-      else rejectPromise(new Error(`ffmpeg exited with code ${code}`));
-    });
-  });
 }
 
 async function waitForChrome(debugPort, timeoutMs = 10_000) {

@@ -6,17 +6,18 @@ Octave is a phone-first music recognition app that listens to nearby audio, iden
 
 ## Demo
 
-<p align="center">
-  <video src="media/octave-demo.mp4" controls muted poster="media/octave-now-playing.png"></video>
-</p>
-
-<p align="center">
-  <a href="media/octave-demo.mp4">Watch the demo video</a>
-</p>
-
-| Idle | Listening | Synced lyrics |
-| --- | --- | --- |
-| <img src="media/octave-idle.png" alt="Octave idle screen with circular Listen button" /> | <img src="media/octave-listening.png" alt="Octave listening screen with live radial visualizer" /> | <img src="media/octave-now-playing.png" alt="Octave now-playing screen with album art and synced lyrics" /> |
+<table>
+  <tr>
+    <th>Idle</th>
+    <th>Listening</th>
+    <th>Synced lyrics</th>
+  </tr>
+  <tr>
+    <td><img src="media/octave-idle.png" alt="Octave idle screen with circular Listen button" width="320" height="180" /></td>
+    <td><img src="media/octave-listening.png" alt="Octave listening screen with live radial visualizer" width="320" height="180" /></td>
+    <td><img src="media/octave-now-playing.png" alt="Octave now-playing screen with album art and synced lyrics" width="320" height="180" /></td>
+  </tr>
+</table>
 
 ## Why it is interesting
 
